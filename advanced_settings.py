@@ -16,7 +16,14 @@ import numpy as np
 import math
 import threshold
 
-
+import serial as serial
+from home import ard
+#port = 'COM3' # note I'm using Mac OS-X
+timeError = 0
+totalError = 0
+#ard = serial.Serial(port,9600,timeout=5)
+global frame_counter
+frame_counter=0
 settings =  []
 
 # saved slider function, stores settings
@@ -41,8 +48,8 @@ def advanced_settings():
         from Adv_Settings import sliders_settings
         global show
         show=False
-        print("new file")
         leftFrame.master.destroy()
+        cap.release()
         cv2.destroyAllWindows()
         sliders_settings()
 
@@ -50,8 +57,8 @@ def advanced_settings():
         from Basic_Settings import basic_settings
         global show
         show = False
-        print("change")
         leftFrame.master.destroy()
+        cap.release()
         cv2.destroyAllWindows()
         basic_settings()
 
@@ -59,7 +66,6 @@ def advanced_settings():
         from home import main_screen
         global show
         show = False
-        print("change")
         cap.release()
         leftFrame.master.destroy()
         cv2.destroyAllWindows()
@@ -101,52 +107,57 @@ def advanced_settings():
     imageFrame.pack(side=BOTTOM, padx=10, pady=10)
 
     def show_frame():
-
-        if (show == True ):
+        if (show == True):
             _, frame = cap.read()
-            frame = cv2.flip(frame, 1)
-            frame = cv2.resize(frame, (590, 440))
+            global frame_counter
+            frame_counter += 1
+            #frame = cv2.flip(frame, 1)
+            frame = cv2.resize(frame, (500, 400))
             frame_orig=frame
-            # *************detect line
+            #*************detect line
             # threshold the image according to the values
 
-          #  frame_mod = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            frame_mod = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            hsv = cv2.cvtColor(frame_mod, cv2.COLOR_BGR2HSV)
             # standard values that usually work:
             # lower_hsv = np.array([6, 88, 100])
             # higher_hsv= np.array([24, 207, 255])
-
-            lower_hsv = np.array([threshold.currentThresh.getHMin(), threshold.currentThresh.getSMin(),
-                                  threshold.currentThresh.getVMin()])
-            higher_hsv = np.array([threshold.currentThresh.getHMax(), threshold.currentThresh.getSMax(),
-                                   threshold.currentThresh.getVMax()])
+            lower_hsv = np.array([threshold.currentThresh.getHMin(), threshold.currentThresh.getSMin(),threshold.currentThresh.getVMin()])
+            higher_hsv = np.array([threshold.currentThresh.getHMax(), threshold.currentThresh.getSMax(), threshold.currentThresh.getVMax()])
             mask = cv2.inRange(hsv, lower_hsv, higher_hsv)
 
             # find the vertical histogram and draw a line
-         #   histogram = np.sum(mask[math.floor(mask.shape[0] / 2):, :], axis=0)
-            histogram = np.sum(mask[(mask.shape[0] / 2):, :], axis=0)
+            histogram = np.sum(mask[math.floor(mask.shape[0] / 2):, :], axis=0)
+            #histogram = np.sum(mask[(mask.shape[0] / 2):, :], axis=0)
             val = np.amax(histogram)
             i = histogram.tolist().index(val)
 
-            # draw a line at the column with the most white pixels
-            # draw a line at the column with the most white pixels
-        #    cv2.line(frame_orig, (i, 150), (i, 400), (255, 0, 0), 3)
-        #    cv2.line(frame_orig, (295, 150), (295, 400), (0, 0, 255), 2)
 
-            #frame = cv2.bitwise_and(frame_orig, frame_orig, mask=mask)
 
+            thisError = i - 250
+            ard.flush()
+            errorStr = str(thisError)
+            errorStr = 'e' + errorStr + '\n'
+            ard.write(errorStr.encode())
             # *********continue with showing
+
+            #*********continue with showing
+
+            #cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+            # draw a line at the column with the most white pixels
+
+
             cv2image = cv2.cvtColor(frame_orig, cv2.COLOR_BGR2RGBA)
             cv2.line(cv2image, (i, 150), (i, 400), (255, 0, 0), 3)
-            cv2.line(cv2image, (295, 150), (295, 400), (0, 0, 255), 2)
+            cv2.line(cv2image, (250, 150), (250, 400), (0, 0, 255), 2)
             cv2image = cv2.cvtColor(cv2image, cv2.COLOR_RGBA2RGB)
-            # in the future, loop to another function to adjust image from here
+            #in the future, loop to another function to adjust image from here
             img = Image.fromarray(cv2image)
             imgtk = ImageTk.PhotoImage(image=img)
             lmain.imgtk = imgtk
             lmain.configure(image=imgtk)
             lmain.after(10, show_frame)
-
+            # *********continue with showing
             # *********continue with showing
             #frame = cv2.bitwise_and(frame, frame, mask=mask)
          #   cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
@@ -187,3 +198,4 @@ def advanced_settings():
 
     show_frame()
     basicRoot.mainloop()
+
